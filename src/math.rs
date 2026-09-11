@@ -70,7 +70,7 @@ pub(crate) fn mod_pow(mut base: u64, mut exponent: u64, q: u64) -> u64 {
     // bei q = 0 panict die Funktion so unabhängig vom Exponenten.
     let mut result = 1 % q;
     while exponent != 0 {
-        if exponent % 2 != 0 {
+        if !exponent.is_multiple_of(2) {
             result = mod_mul(result, base, q);
             exponent -= 1;
         } else {
