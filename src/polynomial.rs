@@ -4,6 +4,7 @@
 //! ist die Auswertung des Polynoms an einer Stelle `x != 0`.
 
 use crate::math::{mod_add, mod_mul};
+use rand::{Rng, RngExt};
 
 /// Ein Polynom, gespeichert als Liste seiner Koeffizienten.
 ///
@@ -31,6 +32,39 @@ impl Polynomial {
         }
     }
 
+    /// Erzeugt ein zufälliges Polynom mit `secret` als konstantem Term.
+    ///
+    /// Beim Secret Sharing ist das der Kern des Verfahrens: Das Geheimnis
+    /// steht an Position 0, alle weiteren Koeffizienten sind Zufall.
+    ///
+    /// - `secret`: das Geheimnis, wird zum konstanten Term
+    /// - `threshold`: Anzahl der Koeffizienten, also Grad + 1. Entspricht
+    ///   der Zahl an Shares, die später zur Rekonstruktion nötig sind.
+    /// - `q`: der Modulus. Alle Koeffizienten werden gleichverteilt aus
+    ///   `0..q` gezogen.
+    /// - `rng`: die Quelle der Zufallszahlen. Für den produktiven Einsatz
+    ///   muss sie kryptografisch sicher sein, etwa `rand::rng()`. In Tests
+    ///   lässt sich ein Generator mit festem Startwert übergeben.
+    ///
+    /// Gibt `None` zurück, wenn `threshold == 0` oder `secret >= q` ist.
+    /// Der Fall `q == 0` ist damit mit abgedeckt, die Funktion panict nie.
+    pub(crate) fn new_random<R: Rng + ?Sized>(
+        secret: u64,
+        threshold: usize,
+        q: u64,
+        rng: &mut R,
+    ) -> Option<Self> {
+        if threshold == 0 || secret >= q {
+            return None;
+        }
+        let mut coefficients = Vec::with_capacity(threshold);
+        coefficients.push(secret);
+        for _ in 1..threshold {
+            coefficients.push(rng.random_range(0..q));
+        }
+        Self::new(coefficients)
+    }
+
     /// Wertet das Polynom an der Stelle `x` modulo `q` aus.
     ///
     /// Nutzt das Horner-Schema und kommt dadurch ohne Potenzen aus.
@@ -51,6 +85,7 @@ impl Polynomial {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use rand::{SeedableRng, rngs::StdRng};
 
     /// 2^64 - 59: die größte Primzahl, die in u64 passt.
     const LARGE_PRIME: u64 = 18_446_744_073_709_551_557;
@@ -66,6 +101,86 @@ mod tests {
         #[test]
         fn returns_some_for_non_empty_coefficients() {
             assert!(Polynomial::new(vec![7, 3]).is_some());
+        }
+    }
+
+    mod new_random {
+        use super::*;
+
+        #[test]
+        fn returns_none_for_threshold_zero() {
+            let mut rng = StdRng::seed_from_u64(42);
+            assert!(Polynomial::new_random(7, 0, 11, &mut rng).is_none());
+        }
+
+        #[test]
+        fn returns_none_when_secret_equals_q() {
+            let mut rng = StdRng::seed_from_u64(42);
+            assert!(Polynomial::new_random(11, 3, 11, &mut rng).is_none());
+        }
+
+        #[test]
+        fn returns_none_when_secret_is_larger_than_q() {
+            let mut rng = StdRng::seed_from_u64(42);
+            assert!(Polynomial::new_random(12, 3, 11, &mut rng).is_none());
+        }
+
+        #[test]
+        fn returns_constant_polynomial_for_threshold_one() {
+            // Ohne Terme mit x ist das Ergebnis für jedes x das Geheimnis
+            let mut rng = StdRng::seed_from_u64(42);
+            let polynomial =
+                Polynomial::new_random(42, 1, 97, &mut rng).expect("threshold > 0 und secret < q");
+            for x in [0, 1, 5, 96] {
+                assert_eq!(polynomial.evaluate(x, 97), 42, "x = {x}");
+            }
+        }
+
+        #[test]
+        fn keeps_secret_as_constant_term() {
+            // Die Auswertung an der Stelle 0 liefert immer den konstanten Term
+            let mut rng = StdRng::seed_from_u64(42);
+            let polynomial =
+                Polynomial::new_random(42, 3, 97, &mut rng).expect("threshold > 0 und secret < q");
+            assert_eq!(polynomial.evaluate(0, 97), 42);
+        }
+
+        #[test]
+        fn creates_as_many_coefficients_as_threshold() {
+            let mut rng = StdRng::seed_from_u64(42);
+            let polynomial =
+                Polynomial::new_random(42, 3, 97, &mut rng).expect("threshold > 0 und secret < q");
+            assert_eq!(polynomial.coefficients.len(), 3);
+        }
+
+        #[test]
+        fn creates_coefficients_smaller_than_q() {
+            // Kleines q, viele Koeffizienten: Eine falsche Range fällt sofort auf
+            let q = 7;
+            let mut rng = StdRng::seed_from_u64(42);
+            let polynomial =
+                Polynomial::new_random(3, 10, q, &mut rng).expect("threshold > 0 und secret < q");
+            for coefficient in &polynomial.coefficients {
+                assert!(*coefficient < q, "Koeffizient = {coefficient}");
+            }
+        }
+
+        #[test]
+        fn creates_same_polynomial_for_same_seed() {
+            let mut rng1 = StdRng::seed_from_u64(42);
+            let mut rng2 = StdRng::seed_from_u64(42);
+            let polynomial1 = Polynomial::new_random(22, 3, 97, &mut rng1);
+            let polynomial2 = Polynomial::new_random(22, 3, 97, &mut rng2);
+            assert_eq!(polynomial1, polynomial2);
+        }
+
+        #[test]
+        fn creates_different_polynomials_for_different_seeds() {
+            let mut rng1 = StdRng::seed_from_u64(42);
+            let mut rng2 = StdRng::seed_from_u64(200);
+            let polynomial1 = Polynomial::new_random(22, 3, LARGE_PRIME, &mut rng1);
+            let polynomial2 = Polynomial::new_random(22, 3, LARGE_PRIME, &mut rng2);
+            assert_ne!(polynomial1, polynomial2);
         }
     }
 
