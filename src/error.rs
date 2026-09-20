@@ -24,6 +24,11 @@ pub enum Error {
     /// Das Geheimnis war nicht kleiner als `q` und passt damit nicht
     /// in den Körper.
     SecretNotLessThanQ { secret: u64, q: u64 },
+
+    /// Fehlerfall für das Umwandeln des Results in ein Polynom.
+    /// Falls ein nicht bedachter Fehlerfall eintritt.
+    // todo: in @polynomial.rs @new_random den Fehlerfall behandeln
+    Internal,
 }
 
 impl std::fmt::Display for Error {
@@ -42,6 +47,7 @@ impl std::fmt::Display for Error {
             Error::SecretNotLessThanQ { secret, q } => {
                 write!(f, "secret {secret} muss kleiner als q {q} sein")
             }
+            Error::Internal => write!(f, "interner Fehler beim Umwandeln mit ok_or"),
         }
     }
 }
