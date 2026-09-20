@@ -325,7 +325,7 @@ mod tests {
         #[test]
         fn finds_inverse_of_two_for_large_prime() {
             // 2 * (q + 1) / 2 = q + 1 ≡ 1; q ist ungerade, die Division geht also glatt auf
-            assert_eq!(mod_inv(2, LARGE_PRIME), Some((LARGE_PRIME + 1) / 2));
+            assert_eq!(mod_inv(2, LARGE_PRIME), Some(LARGE_PRIME.div_ceil(2)));
         }
 
         #[test]
