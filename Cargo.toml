@@ -1,4 +1,9 @@
-    [package]
+[package]
+description = "Shamir's Secret Sharing over a prime field, implemented from scratch as a learning project"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/<dein-user>/shamir"
+keywords = ["cryptography", "secret-sharing", "shamir", "threshold"]
+categories = ["cryptography"]
 name = "shamir"
 version = "0.1.0"
 edition = "2024"

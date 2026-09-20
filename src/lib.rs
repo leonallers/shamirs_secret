@@ -36,4 +36,4 @@ mod polynomial;
 mod sharing;
 
 pub use crate::error::{Error, Result};
-pub use crate::sharing::{Share, split, reconstruct};
+pub use crate::sharing::{Share, reconstruct, split};
