@@ -25,10 +25,21 @@ pub enum Error {
     /// in den Körper.
     SecretNotLessThanQ { secret: u64, q: u64 },
 
-    /// Fehlerfall für das Umwandeln des Results in ein Polynom.
-    /// Falls ein nicht bedachter Fehlerfall eintritt.
+    /// Interner Fehler. Tritt dieser Fall auf, liegt ein Bug in dieser
+    /// Library vor, nicht bei ihrem Aufrufer.
     // todo: in @polynomial.rs @new_random den Fehlerfall behandeln
     Internal,
+
+    /// Es wurden keine Shares übergeben.
+    NoShares,
+
+    /// Ein Share liegt außerhalb des gültigen Bereichs: `x` ist 0, oder
+    /// `x` oder `y` ist nicht kleiner als `q`.
+    InvalidShare { x: u64, y: u64 },
+
+    /// Zwei Shares haben dasselbe `x`. Die Rekonstruktion müsste dann durch
+    /// 0 teilen.
+    DuplicateShareX { x: u64 },
 }
 
 impl std::fmt::Display for Error {
@@ -48,6 +59,13 @@ impl std::fmt::Display for Error {
                 write!(f, "secret {secret} muss kleiner als q {q} sein")
             }
             Error::Internal => write!(f, "interner Fehler beim Umwandeln mit ok_or"),
+            Error::NoShares => write!(f, "es wurden keine shares übergeben"),
+            Error::DuplicateShareX { x } => {
+                write!(f, "übergebene shares haben selben x wert {x}")
+            }
+            Error::InvalidShare { x, y } => {
+                write!(f, "x {x} oder y {y} wert des shares sind invalide")
+            }
         }
     }
 }
